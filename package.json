@@ -1,0 +1,46 @@
+{
+  "name": "advocate-draft",
+  "productName": "Advocate Draft",
+  "version": "0.1.0",
+  "description": "Desktop app that drafts legal documents from case facts + source documents in a chosen output format, using the advocate's own Claude API key.",
+  "main": "src/main.js",
+  "author": "Sandeep",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "test": "node --test \"test/*.test.js\"",
+    "smoke": "electron test/smoke-electron.js"
+  },
+  "devDependencies": {
+    "electron": "^44.10.0",
+    "pdf-lib": "1.17.1"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.68.0",
+    "@napi-rs/canvas": "1.0.11",
+    "@tesseract.js-data/ben": "1.0.0",
+    "@tesseract.js-data/eng": "1.0.0",
+    "@tesseract.js-data/guj": "1.0.0",
+    "@tesseract.js-data/hin": "1.0.0",
+    "@tesseract.js-data/kan": "1.0.0",
+    "@tesseract.js-data/mal": "1.0.0",
+    "@tesseract.js-data/mar": "1.0.0",
+    "@tesseract.js-data/ori": "1.0.0",
+    "@tesseract.js-data/pan": "1.0.0",
+    "@tesseract.js-data/tam": "1.0.0",
+    "@tesseract.js-data/tel": "1.0.0",
+    "@tesseract.js-data/urd": "1.0.0",
+    "docx": "^9.5.1",
+    "jszip": "^3.10.2",
+    "mammoth": "^1.9.1",
+    "pdf-parse": "^1.1.1",
+    "pdfjs-dist": "6.4.299",
+    "tesseract.js": "7.0.0"
+  },
+  "allowScripts": {
+    "electron@44.10.0": true,
+    "tesseract.js": false
+  }
+}

@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline';" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Advocate Draft</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="mark">§</span>
+        <div>
+          <h1>Advocate Draft</h1>
+          <p class="tagline">Draft from facts &amp; documents, in your format</p>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <label class="model-pick">
+          AI provider
+          <select id="provider"></select>
+        </label>
+        <label class="model-pick">
+          Model
+          <input id="model" list="modelList" spellcheck="false" autocomplete="off" placeholder="Choose or type a model" />
+          <datalist id="modelList"></datalist>
+        </label>
+        <button id="translateDocBtn" class="ghost" title="Upload a document (PDF, Word, scan or photo) and translate it">⇄ Translate a document</button>
+        <button id="promptsBtn" class="ghost" title="View and edit the instructions sent to the AI">✎ Prompts</button>
+        <button id="settingsBtn" class="ghost">⚙ AI providers</button>
+      </div>
+    </header>
+
+    <div class="matterbar">
+      <span class="mlabel">Matter</span>
+      <input id="matterTitle" spellcheck="false" autocomplete="off" placeholder="Untitled matter — name it, e.g. Shetty v. Kumar (deposit refund)" />
+      <span id="saveState" class="hint"></span>
+      <button id="newMatter" class="ghost" title="Start a new matter (the current one is already saved)">New matter</button>
+      <button id="openMatter" class="ghost" title="Open a saved matter">Open…</button>
+    </div>
+
+    <main class="layout">
+      <!-- Inputs column -->
+      <section class="inputs">
+        <div class="panel">
+          <div class="panel-head">
+            <h2>1 · Output format</h2>
+            <div class="head-actions">
+              <button class="link strong" id="chooseFormat" title="Built-in Indian court and legal formats">Choose a format…</button>
+              <button class="link" data-pick="template" title="A blank format to fill in, followed exactly">Add template…</button>
+              <button class="link" data-pick="precedent" title="A document from an earlier matter — its structure and language are reused, its facts are not">Add previous document…</button>
+            </div>
+          </div>
+          <ul id="refList" class="doclist">
+            <li class="empty">Optional: a blank template to fill, or a previous document to model this one on.</li>
+          </ul>
+          <textarea id="template" placeholder="Format instructions (optional) — e.g. “Plaint under Order VII CPC for the City Civil Court, Bengaluru. Short numbered paragraphs.” You can also paste a format here instead of adding a file."></textarea>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h2>2 · Case facts</h2>
+          </div>
+          <textarea id="facts" placeholder="State the facts of the matter: parties, dates, events, reliefs sought, jurisdiction. Be specific — the draft is grounded only in what you provide here and in the documents."></textarea>
+          <div id="formatChecklist" class="checklist" hidden></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h2>3 · Source documents</h2>
+            <div class="head-actions">
+              <select id="ocrLang" class="fmt-pick" title="Language of scanned documents and photos (read on this computer)"></select>
+              <button class="link" data-pick="documents">Add files…</button>
+            </div>
+          </div>
+          <ul id="docList" class="doclist">
+            <li class="empty">No documents added. PDF (including scans), DOCX, TXT and photos of documents supported.</li>
+          </ul>
+        </div>
+
+        <div class="options">
+          <label class="opt">
+            Context budget
+            <select id="budget">
+              <option value="400000" selected>Large · ~100k tokens</option>
+              <option value="200000">Medium · ~50k tokens</option>
+              <option value="80000">Small · ~20k tokens (cheapest)</option>
+            </select>
+          </label>
+          <label class="opt check">
+            <input type="checkbox" id="includeNotes" checked />
+            Add source notes for verification
+          </label>
+        </div>
+        <p id="providerHint" class="hint" hidden></p>
+
+        <button id="generateBtn" class="primary">Generate draft</button>
+        <p id="status" class="status"></p>
+      </section>
+
+      <!-- Output column -->
+      <section class="output">
+        <div class="panel grow">
+          <div class="panel-head">
+            <h2>Draft</h2>
+            <div class="out-actions">
+              <button id="copyBtn" class="ghost" disabled>Copy</button>
+              <select id="wordFormat" class="fmt-pick" title="Formatting used for the Word export: page setup, margins, letterhead and body font"></select>
+              <button id="exportBtn" class="ghost" disabled>Export .docx</button>
+            </div>
+          </div>
+          <textarea id="draft" class="draft" placeholder="The generated draft appears here and is fully editable. Always review before use."></textarea>
+          <div id="carryOver" class="carry" hidden></div>
+          <p id="usage" class="usage"></p>
+        </div>
+      </section>
+    </main>
+
+    <!-- Translation -->
+    <dialog id="translateDlg" class="wide">
+      <div class="prompts-wrap">
+        <div class="prompts-head">
+          <h2 id="trTitle">Translate</h2>
+          <div class="tr-langs">
+            From <select id="trSource" class="fmt-pick"></select>
+            into <select id="trTarget" class="fmt-pick"></select>
+          </div>
+        </div>
+        <div class="tr-body">
+          <div class="tr-col">
+            <div class="k">Original</div>
+            <pre id="trOriginal" class="preview tr-pane"></pre>
+          </div>
+          <div class="tr-col">
+            <div class="k">Translation <span id="trInfo" class="hint"></span></div>
+            <textarea id="trText" class="tr-pane tr-edit" spellcheck="false" placeholder="Press Translate. You can correct the translation here; changes are saved with the matter."></textarea>
+          </div>
+        </div>
+        <div class="prompts-foot">
+          <span id="trStatus" class="hint"></span>
+          <div class="right">
+            <button id="trCopy" class="ghost" disabled>Copy</button>
+            <button id="trExport" class="ghost" disabled title="Word document with a translator's certificate to complete and sign">Export .docx</button>
+            <button id="trClose" class="ghost">Close</button>
+            <button id="trRun" class="primary">Translate</button>
+          </div>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Text read from a file -->
+    <dialog id="docTextDlg" class="wide">
+      <div class="prompts-wrap">
+        <div class="prompts-head"><h2 id="docTextTitle"></h2></div>
+        <div class="tab-body">
+          <p class="hint" id="docTextInfo"></p>
+          <pre id="docTextBody" class="preview"></pre>
+        </div>
+        <div class="prompts-foot"><span></span><div class="right"><button id="closeDocText" class="primary">Close</button></div></div>
+      </div>
+    </dialog>
+
+    <!-- Built-in formats -->
+    <dialog id="formatsDlg" class="wide">
+      <div class="prompts-wrap">
+        <div class="prompts-head">
+          <h2>Choose a format</h2>
+          <input id="formatSearch" class="msearch" placeholder="Search, e.g. bail, divorce, cheque" spellcheck="false" autocomplete="off" />
+        </div>
+        <div class="fmt-body">
+          <div class="fmt-left">
+            <div id="formatCats" class="fmt-cats"></div>
+            <ul id="formatList" class="fmt-list"></ul>
+          </div>
+          <div id="formatDetail" class="fmt-detail"></div>
+        </div>
+        <div class="prompts-foot">
+          <span class="hint">Formats are starting points. Check them against the rules and practice of your court and State.</span>
+          <div class="right">
+            <button id="closeFormats" class="ghost">Close</button>
+            <button id="useFormat" class="primary" disabled>Use this format</button>
+          </div>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Saved matters -->
+    <dialog id="mattersDlg" class="wide">
+      <div class="prompts-wrap">
+        <div class="prompts-head">
+          <h2>Saved matters</h2>
+          <input id="matterSearch" class="msearch" placeholder="Search by name" spellcheck="false" autocomplete="off" />
+        </div>
+        <div class="tab-body">
+          <p class="hint">Matters are saved automatically on this computer, encrypted with your OS keychain.</p>
+          <ul id="matterList" class="mlist"></ul>
+        </div>
+        <div class="prompts-foot">
+          <span></span>
+          <div class="right"><button id="closeMatters" class="ghost">Close</button></div>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- AI providers dialog -->
+    <dialog id="settings" class="wide">
+      <div class="prompts-wrap">
+        <div class="prompts-head">
+          <h2>AI providers</h2>
+          <span class="hint" id="encHint"></span>
+        </div>
+        <div class="tab-body">
+          <p class="hint">
+            Set up any of these. Pick which one drafts from the <em>AI provider</em> menu at the top. Keys and sign-ins
+            are stored on this computer only, encrypted with your OS keychain, and used only when you generate a draft.
+          </p>
+          <div id="providerCards"></div>
+        </div>
+        <div class="prompts-foot">
+          <span></span>
+          <div class="right"><button id="closeSettings" class="primary">Done</button></div>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Prompt editor -->
+    <dialog id="promptsDlg" class="wide">
+      <div class="prompts-wrap">
+        <div class="prompts-head">
+          <h2>Prompts</h2>
+          <div class="tabs">
+            <button class="tab active" data-tab="edit">Edit</button>
+            <button class="tab" data-tab="preview">Preview for current inputs</button>
+          </div>
+        </div>
+
+        <div class="tab-body" id="tab-edit">
+          <p class="hint">
+            These instructions are sent to the AI with every draft, whichever provider is selected. Each section is used only in the situation shown.
+            Clearing a section restores its default. The layout of the message (format, template, facts, documents)
+            is fixed. See it under <em>Preview</em>.
+          </p>
+          <div id="promptSections"></div>
+        </div>
+
+        <div class="tab-body" id="tab-preview" hidden>
+          <p class="hint" id="previewInfo"></p>
+          <h3>Instructions (system prompt)</h3>
+          <pre id="previewSystem" class="preview"></pre>
+          <h3>Message</h3>
+          <pre id="previewUser" class="preview"></pre>
+        </div>
+
+        <div class="prompts-foot">
+          <div class="left">
+            <button id="importPrompts" class="ghost" title="Load a prompts file shared by a colleague">Import…</button>
+            <button id="exportPrompts" class="ghost" title="Save your saved prompt changes to share">Export…</button>
+            <button id="resetAllPrompts" class="ghost">Reset all to default</button>
+          </div>
+          <div class="right">
+            <span id="promptsDirty" class="hint"></span>
+            <button id="closePrompts" class="ghost">Close</button>
+            <button id="savePrompts" class="primary">Save</button>
+          </div>
+        </div>
+      </div>
+    </dialog>
+
+    <script src="renderer.js"></script>
+  </body>
+</html>
