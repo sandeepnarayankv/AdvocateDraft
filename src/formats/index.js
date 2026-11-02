@@ -12,9 +12,23 @@ const all = [
   ...require('./criminal'),
   ...require('./family-consumer'),
   ...require('./notices-deeds'),
+  ...require('./writs-rti'),
+  ...require('./motor-accident'),
+  ...require('./arbitration'),
+  ...require('./rent'),
 ];
 
-const CATEGORIES = ['Civil', 'Criminal', 'Family & consumer', 'Notices, deeds & affidavits'];
+const CATEGORIES = [
+  'Civil',
+  'Criminal',
+  'Family & consumer',
+  'Notices, deeds & affidavits',
+  'Writs',
+  'Motor accident claims',
+  'Arbitration',
+  'Rent & eviction',
+  'RTI',
+];
 
 const byId = new Map(all.map((f) => [f.id, f]));
 

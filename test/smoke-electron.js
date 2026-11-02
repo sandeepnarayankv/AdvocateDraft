@@ -249,7 +249,7 @@ app.on('browser-window-created', (_e, win) => {
       expect(!report.afterNew.facts && !report.afterNew.title, 'New matter did not clear the fields');
       expect(report.listed.join() === 'Smoke v. Test', `matter list wrong: ${report.listed}`);
       expect(report.reopened.facts.startsWith('Smoke facts') && report.reopened.title === 'Smoke v. Test', 'reopen failed');
-      expect(report.formatCount >= 35 && report.criminalCount === 8, `format picker counts: ${report.formatCount}/${report.criminalCount}`);
+      expect(report.formatCount === 50 && report.criminalCount === 8, `format picker counts: ${report.formatCount}/${report.criminalCount}`);
       expect(report.detailHasLaw, 'format detail missing law');
       const fu = report.formatUsed;
       expect(fu.refs[0] === 'Format: Regular bail application (Magistrate)', `format not added: ${fu.refs}`);

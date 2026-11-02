@@ -8,7 +8,7 @@ const P = require('../src/prompts');
 
 (async () => {
   const all = formats.all;
-  assert(all.length >= 35, `expected at least 35 formats, got ${all.length}`);
+  assert(all.length >= 50, `expected at least 50 formats, got ${all.length}`);
 
   // Every format is complete.
   const ids = new Set();
@@ -51,6 +51,20 @@ const P = require('../src/prompts');
     'civil-caveat': /Section 148A CPC/,
     'notice-section-80': /Section 80 CPC/,
     'notice-cheque-138': /Section 138\(b\)/,
+    'writ-226': /Article 226/,
+    'writ-habeas-corpus': /Article 226/,
+    'mact-death': /Section 166 Motor Vehicles Act/,
+    'mact-injury': /Section 166 Motor Vehicles Act/,
+    'arb-21-notice': /Section 21/,
+    'arb-9-interim': /Section 9, Arbitration and Conciliation Act/,
+    'arb-11-appointment': /Section 11\(5\) \/ 11\(6\)/,
+    'arb-34-set-aside': /Section 34, Arbitration and Conciliation Act/,
+    'arb-36-enforcement': /Section 36/,
+    'rti-application': /Section 6\(1\), Right to Information Act/,
+    'rti-first-appeal': /Section 19\(1\)/,
+    'rti-second-appeal': /Section 19\(3\)/,
+    'rent-eviction-petition': /State rent law/,
+    'rent-suit-possession': /Sections 106 and 111 Transfer of Property Act/,
   };
   for (const [id, re] of Object.entries(expectations)) {
     assert(formats.get(id), `missing format ${id}`);
@@ -66,6 +80,21 @@ const P = require('../src/prompts');
   assert(/two months/.test(formats.get('notice-section-80').instructions));
   assert(/Order XXXVII Rule 2\(1\)/.test(formats.get('civil-summary-suit').instructions));
   assert(/Rs\. 50 lakh/.test(formats.get('consumer-complaint').instructions));
+  // Time rules and unsettled points the new formats must carry.
+  const arb34 = formats.get('arb-34-set-aside').instructions;
+  assert(/three months/.test(arb34) && /further 30 days/.test(arb34) && /not thereafter/.test(arb34), 'Section 34(3) limitation');
+  assert(/90 days/.test(arb34), 'safe-filing advice on the 3-month reading');
+  assert(/90 days of the order/.test(formats.get('arb-9-interim').instructions), 'Section 9(2)');
+  assert(/proof of receipt/.test(formats.get('arb-21-notice').instructions), 'Section 21 receipt');
+  const mact = formats.get('mact-death').instructions;
+  assert(/six months/.test(mact) && /stayed its operation/.test(mact) && /verify the current position/.test(mact), 'Section 166(3) and its stay');
+  assert(/Section 159/.test(mact) && /Section 164/.test(mact));
+  const rti = formats.get('rti-application').instructions;
+  assert(/30 days/.test(rti) && /48 hours/.test(rti) && /90 days/.test(rti), 'RTI time limits');
+  assert(/Section 7\(6\)/.test(formats.get('rti-first-appeal').instructions), 'free information on delay');
+  assert(/Do not assume a State Act/.test(formats.get('rent-eviction-petition').instructions), 'rent law caution');
+  assert(/alternative remedy/.test(formats.get('writ-226').instructions));
+  assert(/Article 22\(5\)/.test(formats.get('writ-habeas-corpus').instructions));
 
   // The picker list carries no template text (kept small), but everything else.
   const summary = formats.list()[0];

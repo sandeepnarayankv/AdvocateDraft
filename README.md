@@ -38,7 +38,7 @@ The model is instructed to use only the supplied facts/documents, mark missing d
 
 ### Built-in Indian formats
 
-**Choose a format…** (in *Output format*) offers 36 formats. Each lists its court, governing law, the facts it needs and the documents usually filed with it, and shows the skeleton. Using one adds it as the matter's template, adds its drafting notes to the format instructions, and — if the facts box is empty — fills it with a checklist to complete.
+**Choose a format…** (in *Output format*) offers 50 formats. Each lists its court, governing law, the facts it needs and the documents usually filed with it, and shows the skeleton. Using one adds it as the matter's template, adds its drafting notes to the format instructions, and — if the facts box is empty — fills it with a checklist to complete.
 
 | Area | Formats |
 |---|---|
@@ -46,6 +46,11 @@ The model is instructed to use only the supplied facts/documents, mark missing d
 | Criminal (BNSS / BNS) | Regular bail — Magistrate (s.480) · Bail — Sessions / High Court (s.483) · Anticipatory bail (s.482) · Cheque bounce complaint (s.138 NI Act) · Private complaint (s.223) · Direction to investigate (s.175(3)) · Quashing petition (s.528) · Criminal revision (s.438) |
 | Family & consumer | Divorce (HMA s.13) · Mutual consent divorce (s.13B) · Restitution of conjugal rights (s.9) · Maintenance (BNSS s.144) · Domestic violence (PWDVA s.12) · Child custody (GWA s.7/25) · Consumer complaint (CPA 2019 s.35) |
 | Notices, deeds & affidavits | Legal notice · Cheque dishonour notice (s.138(b)) · Reply to notice · Notice to Government (s.80 CPC) · Termination of tenancy (s.106 TPA) · General affidavit · Affidavit of evidence (O.XVIII R.4) · Vakalatnama · Rental / leave and licence agreement · Agreement to sell · General power of attorney · Special power of attorney |
+| Writs | Writ petition — certiorari / mandamus (Art. 226) · Habeas corpus |
+| Motor accident claims | Claim for death (MV Act s.166) · Claim for injury (s.166) |
+| Arbitration | Notice invoking arbitration (s.21) · Interim measures (s.9) · Appointment of arbitrator (s.11) · Setting aside an award (s.34) · Enforcing an award (s.36) |
+| Rent & eviction | Eviction petition under the State rent law · Suit for possession and mesne profits (s.106 / s.111 TPA) |
+| RTI | Application (s.6(1)) · First appeal (s.19(1)) · Second appeal to the Information Commission (s.19(3)) |
 
 Formats are starting points: court fees, stamp duty, registration and local practice vary by State and court, and are left as placeholders. The criminal formats follow the BNSS/BNS (in force from 1 July 2024); check whether an older offence or case still falls under the IPC/CrPC.
 
