@@ -112,26 +112,70 @@ function bm25Scores(chunks, queryTerms, { k1 = 1.5, b = 0.75 } = {}) {
   });
 }
 
+// Reciprocal rank fusion: combine rankings, not raw scores, so keyword and
+// meaning scores (on different scales) count equally. K damps the top ranks.
+const RRF_K = 60;
+// Tied scores share their average rank, so a signal that cannot tell passages
+// apart (e.g. many with no keyword match) gives none of them an edge — and
+// passages early in a document get no advantage just for coming first.
+function rankOf(scores) {
+  const order = scores.map((_, i) => i).sort((a, b) => scores[b] - scores[a]);
+  const rank = new Array(scores.length);
+  for (let start = 0; start < order.length; ) {
+    let end = start;
+    while (end + 1 < order.length && scores[order[end + 1]] === scores[order[start]]) end++;
+    const avg = (start + end) / 2 + 1;
+    for (let k = start; k <= end; k++) rank[order[k]] = avg;
+    start = end + 1;
+  }
+  return rank;
+}
+function fuseScores(keyword, meaning) {
+  const rk = rankOf(keyword);
+  const rm = rankOf(meaning);
+  return keyword.map((_, i) => 1 / (RRF_K + rk[i]) + 1 / (RRF_K + rm[i]));
+}
+
+function chunksFor(documents, budgetChars) {
+  const docs = documents.filter((d) => d.text && d.text.trim());
+  const totalChars = docs.reduce((s, d) => s + d.text.length, 0);
+  const mode = totalChars <= budgetChars ? 'full' : 'retrieved';
+  // No overlap in full mode: it would only duplicate text.
+  const chunks = docs.flatMap((d, i) => chunkDocument(d, i, { overlapChars: mode === 'full' ? 0 : 200 }));
+  return { docs, totalChars, mode, chunks };
+}
+
+// Passage texts that would be ranked (none when everything fits), so the
+// caller can compute meaning scores for them first.
+function passagesToRank(documents, { budgetChars = 400000 } = {}) {
+  const { mode, chunks } = chunksFor(documents, budgetChars);
+  return mode === 'full' ? [] : chunks.map((c) => c.text);
+}
+
 // Decide what document text goes into the prompt.
 //   documents: [{ name, text }]
 //   query:     text describing what the draft needs (facts + format)
 //   budgetChars: max characters of source material to send
-function selectContext(documents, query, { budgetChars = 400000 } = {}) {
-  const docs = documents.filter((d) => d.text && d.text.trim());
-  const totalChars = docs.reduce((s, d) => s + d.text.length, 0);
-  const mode = totalChars <= budgetChars ? 'full' : 'retrieved';
-
-  // No overlap in full mode: it would only duplicate text.
-  const chunks = docs.flatMap((d, i) =>
-    chunkDocument(d, i, { overlapChars: mode === 'full' ? 0 : 200 })
-  );
+//   meaningScore(text): optional similarity of a passage to the facts
+//                       (meaning-based search); fused with keyword ranking
+function selectContext(documents, query, { budgetChars = 400000, meaningScore } = {}) {
+  const { docs, totalChars, mode, chunks } = chunksFor(documents, budgetChars);
 
   let selected;
+  let method = 'all text';
   if (mode === 'full') {
     selected = chunks;
   } else {
     const queryTerms = tokenize(query);
-    const scores = bm25Scores(chunks, queryTerms);
+    let scores = bm25Scores(chunks, queryTerms);
+    method = 'keyword';
+    if (meaningScore) {
+      const meaning = chunks.map((c) => meaningScore(c.text));
+      if (meaning.every((m) => typeof m === 'number')) {
+        scores = fuseScores(scores, meaning);
+        method = 'keyword + meaning';
+      }
+    }
     const picked = new Set();
     let used = 0;
     const take = (i) => {
@@ -178,6 +222,7 @@ function selectContext(documents, query, { budgetChars = 400000 } = {}) {
       passagesTotal: chunks.length,
       passagesUsed: selected.length,
       budgetChars,
+      method,
     },
   };
 }
@@ -202,4 +247,4 @@ function renderContext({ mode, blocks }) {
     .join('\n\n');
 }
 
-module.exports = { tokenize, chunkDocument, bm25Scores, selectContext, renderContext };
+module.exports = { tokenize, chunkDocument, bm25Scores, fuseScores, passagesToRank, selectContext, renderContext };

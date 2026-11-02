@@ -36,7 +36,14 @@
       "!**/node_modules/pdf-parse/lib/pdf.js/v1.10.88/**",
       "!**/node_modules/pdf-parse/lib/pdf.js/v1.9.426/**",
       "!**/node_modules/pdf-parse/lib/pdf.js/v2.0.550/**",
-      "!**/node_modules/pdf-parse/test/**"
+      "!**/node_modules/pdf-parse/test/**",
+      "!**/node_modules/onnxruntime-node/bin/napi-v6/darwin/**",
+      "!**/node_modules/onnxruntime-node/bin/napi-v6/linux/**",
+      "!**/node_modules/onnxruntime-node/bin/napi-v6/win32/arm64/**",
+      "!**/node_modules/onnxruntime-web/**",
+      "!**/node_modules/@huggingface/transformers/dist/transformers.{js,min.js}",
+      "!**/node_modules/@huggingface/transformers/dist/transformers.web*",
+      "!**/node_modules/@huggingface/transformers/dist/ort-wasm*"
     ],
     "asar": false,
     "win": {
@@ -69,6 +76,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",
+    "@huggingface/transformers": "4.3.1",
     "@napi-rs/canvas": "1.0.11",
     "@tesseract.js-data/ben": "1.0.0",
     "@tesseract.js-data/eng": "1.0.0",
@@ -92,6 +100,8 @@
   "allowScripts": {
     "electron@44.10.0": true,
     "tesseract.js": false,
-    "electron-winstaller": false
+    "electron-winstaller": false,
+    "onnxruntime-node": false,
+    "protobufjs": false
   }
 }

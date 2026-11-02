@@ -72,6 +72,7 @@ const PAGE_CHECKS = `(async () => {
   out.preview = { chars: p.chars, hasNotesMarker: p.system.includes('SOURCE NOTES'), endsWithTask: /## TASK/.test(p.user) };
   const sections = await window.api.prompts.get();
   out.promptSections = sections.length;
+  out.semantic = { checked: document.getElementById('semanticSearch').checked, state: document.getElementById('semanticState').textContent };
   const ollama = await window.api.providers.models('ollama');
   out.ollama = ollama.ok ? ollama.models.length + ' model(s)' : 'not running: ' + ollama.error;
   document.getElementById('settingsBtn').click();
@@ -242,6 +243,7 @@ app.on('browser-window-created', (_e, win) => {
       expect(report.providers.length === 5, 'expected 5 providers');
       expect(report.preview.hasNotesMarker && report.preview.endsWithTask, 'prompt preview incomplete');
       expect(report.providerCards === 5, 'provider cards missing');
+      expect(!report.semantic.checked && /one-time 130 MB download/.test(report.semantic.state), `meaning-based search default: ${JSON.stringify(report.semantic)}`);
       expect(report.promptEditorSections === report.promptSections, 'prompt editor sections missing');
       expect(/^Saved/.test(report.autosave), `not autosaved: ${report.autosave}`);
       expect(!report.afterNew.facts && !report.afterNew.title, 'New matter did not clear the fields');

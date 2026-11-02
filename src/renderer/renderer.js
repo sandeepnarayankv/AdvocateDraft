@@ -527,6 +527,50 @@ $('translateDocBtn').addEventListener('click', async () => {
   }
 });
 
+// ---- Meaning-based search ---------------------------------------------------
+const SEM = window.api.semantic;
+function showSemantic(s) {
+  $('semanticSearch').checked = s.enabled && s.ready;
+  $('semanticSearch').disabled = Boolean(s.downloading);
+  $('semanticState').textContent = s.downloading ? '(downloading…)' : s.enabled && s.ready ? '(on this computer)' : s.ready ? '' : '(one-time 130 MB download)';
+}
+SEM.status().then(showSemantic);
+SEM.onProgress(({ loaded, total, file }) => {
+  if (!total || !/\.onnx$/.test(file || '')) return;
+  const pct = Math.round((loaded / total) * 100);
+  $('semanticState').textContent = `(downloading ${pct}%)`;
+  setStatus(`Downloading the meaning-based search model… ${pct}% (${Math.round(loaded / 1048576)} of ${Math.round(total / 1048576)} MB)`, 'busy');
+});
+$('semanticSearch').addEventListener('change', async (e) => {
+  if (!e.target.checked) {
+    showSemantic(await SEM.disable());
+    setStatus('Meaning-based search is off. Long documents are searched by keyword only.', '');
+    return;
+  }
+  const s = await SEM.status();
+  if (!s.ready) {
+    const ok = confirm(
+      'Turn on meaning-based search?\n\n' +
+        'This downloads a language model (about 130 MB) from Hugging Face, once. After that it runs entirely on this ' +
+        'computer — your documents are never uploaded for it.\n\n' +
+        'It helps when documents are too long to send whole: passages are then picked by meaning as well as by ' +
+        'keyword (for example "advance" when the facts say "deposit", or a passage in an Indian language).'
+    );
+    if (!ok) {
+      e.target.checked = false;
+      return;
+    }
+  }
+  showSemantic({ ...s, downloading: !s.ready });
+  const res = await SEM.enable();
+  showSemantic(res);
+  if (res.ok) setStatus('Meaning-based search is on. It is used when documents are too long to send whole.', '');
+  else {
+    $('semanticSearch').checked = false;
+    setStatus(res.error, 'err');
+  }
+});
+
 // Language(s) for reading scans.
 (async () => {
   const { langs, languages } = await window.api.ocr.settings();
@@ -781,7 +825,7 @@ function describeContext(c) {
   const k = (n) => `${Math.round(n / 1000)}k`;
   return c.mode === 'full'
     ? `full text of ${c.documents} doc${c.documents > 1 ? 's' : ''} (${k(c.usedChars)} chars)`
-    : `${c.passagesUsed} of ${c.passagesTotal} passages retrieved (${k(c.totalChars)} → ${k(c.usedChars)} chars)`;
+    : `${c.passagesUsed} of ${c.passagesTotal} passages picked by ${c.method || 'keyword'} (${k(c.totalChars)} → ${k(c.usedChars)} chars)`;
 }
 
 // Current inputs, as sent for generation and for the prompt preview.

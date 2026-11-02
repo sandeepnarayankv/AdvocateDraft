@@ -26,6 +26,16 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('files:done', listener);
     return () => ipcRenderer.removeListener('files:done', listener);
   },
+  semantic: {
+    status: () => ipcRenderer.invoke('semantic:status'),
+    enable: () => ipcRenderer.invoke('semantic:enable'),
+    disable: () => ipcRenderer.invoke('semantic:disable'),
+    onProgress: (cb) => {
+      const listener = (_e, p) => cb(p);
+      ipcRenderer.on('semantic:progress', listener);
+      return () => ipcRenderer.removeListener('semantic:progress', listener);
+    },
+  },
   aiRead: {
     run: (payload) => ipcRenderer.invoke('aiRead:run', payload),
     cancel: () => ipcRenderer.invoke('aiRead:cancel'),

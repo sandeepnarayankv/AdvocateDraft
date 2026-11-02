@@ -49,6 +49,10 @@ The model is instructed to use only the supplied facts/documents, mark missing d
 
 Formats are starting points: court fees, stamp duty, registration and local practice vary by State and court, and are left as placeholders. The criminal formats follow the BNSS/BNS (in force from 1 July 2024); check whether an older offence or case still falls under the IPC/CrPC.
 
+### Meaning-based search
+
+When source documents are too long to send whole, passages are picked by keyword (BM25). Tick **Meaning-based search** to also pick them by meaning — for example a passage saying "advance" when the facts say "deposit", or one in an Indian language. The first time, it asks to download a multilingual model (`multilingual-e5-small`, about 130 MB) from Hugging Face; afterwards it runs entirely on this computer with downloading switched off, and documents are never uploaded for it. Each passage is scored by its best-matching sentence, so one relevant line in a page of routine entries still counts, and the keyword and meaning rankings are merged (reciprocal rank fusion) so neither can push out the other's best matches. It is a small model: it helps, but exact names, dates and section numbers still come mainly from keywords. The usage line after a draft says whether passages were picked "by keyword" or "by keyword + meaning".
+
 ### Translation
 
 **⇄ Translate a document** (top bar) uploads a file just to translate it — PDF (including scans), Word, text or a photo of a document. It is read on this computer (with OCR for scans; **Read with AI** is available for handwriting), and the translation window opens as soon as it is read. Such files are kept in the matter but marked **Not in draft**, so they are never sent when drafting; every source document has this **In draft / Not in draft** switch.
@@ -124,6 +128,7 @@ Starts the real app in Electron with a throwaway data folder (your settings and 
 - `src/prompts.js` — editable prompt sections, their defaults, save/import/export, and prompt assembly.
 - `src/precedent.js` — template / previous-document handling and the carry-over check.
 - `src/docx-export.js` — Word export into a base .docx (yours or the standard format).
+- `src/semantic.js` and `src/ocr/embedder.js` — meaning-based search: the setting and one-time model download, sentence-window scoring with a session cache, and the embedding model run in the background worker.
 - `src/rag.js` — local retrieval: passage chunking + BM25 ranking. Sends full text when it fits the context budget, otherwise the most relevant passages (each document's opening passage is always kept).
 - `src/preload.js` — safe IPC bridge (context isolation on, no Node in the renderer).
 - `src/renderer/` — the UI (`index.html`, `styles.css`, `renderer.js`).
@@ -133,7 +138,6 @@ Starts the real app in Electron with a throwaway data folder (your settings and 
 Known next steps:
 - Code-sign the installer.
 - Verify each cloud provider with a real account (only Ollama has been run for real).
-- Semantic (embedding) retrieval alongside BM25, for facts worded differently from the documents.
 
 Setting up on a new machine with npm 11+: npm holds back Electron's download step. Run `npm install-scripts approve electron` (or `npm rebuild electron`) after `npm install` if `npm start` cannot find Electron.
 

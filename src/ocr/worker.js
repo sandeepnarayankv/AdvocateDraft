@@ -6,12 +6,15 @@
 //
 // In:  { type: 'read', id, filePath, kind: 'pdf' | 'image', langs, op?: 'images' }
 //      (op 'images' returns page images for an AI model instead of OCR text)
+//      { type: 'read', id, op: 'embedSetup', cacheDir }       one-time model download
+//      { type: 'read', id, op: 'embed', cacheDir, texts, kind } vectors for texts
 //      { type: 'cancel', id }
 // Out: { type: 'progress', id, page, total, ocr }
 //      { type: 'done', id, result }  |  { type: 'error', id, message, cancelled }
 
 const fs = require('fs');
 const { createReader, summarise } = require('./pipeline');
+const embedder = require('./embedder');
 
 const port = process.parentPort;
 const send = (msg) => (port ? port.postMessage(msg) : process.send(msg));
@@ -32,6 +35,21 @@ function readerFor(langs) {
 async function run(job) {
   const controller = controllers.get(job.id);
   try {
+    // Meaning-based search: model setup (one-time download) and embedding.
+    if (job.op === 'embedSetup') {
+      await embedder.load(job.cacheDir, {
+        download: true,
+        onProgress: (p) => send({ type: 'progress', id: job.id, ...p }),
+      });
+      send({ type: 'done', id: job.id, result: { ready: true } });
+      return;
+    }
+    if (job.op === 'embed') {
+      const vectors = await embedder.embed(job.cacheDir, job.texts, job.kind);
+      send({ type: 'done', id: job.id, result: vectors });
+      return;
+    }
+
     const buffer = fs.readFileSync(job.filePath);
     const reader = readerFor(job.langs);
     const onProgress = (p) => send({ type: 'progress', id: job.id, ...p });

@@ -18,7 +18,8 @@ const {
   translationForFiling,
 } = require('./translate');
 const { createChatGptAuth } = require('./chatgpt-auth');
-const { selectContext, renderContext } = require('./rag');
+const { selectContext, renderContext, passagesToRank } = require('./rag');
+const { createSemantic } = require('./semantic');
 const { renderReferences, findCarryOver } = require('./precedent');
 const { buildDocx } = require('./docx-export');
 const {
@@ -117,6 +118,7 @@ function registerSourceFile(filePath, kind) {
 // for scanned pages). The entry returned now is a placeholder marked
 // pending; progress and the result arrive as 'files:progress' / 'files:done'.
 const ocr = createOcrService({ spawn: nodeSpawner() });
+const semantic = createSemantic({ ocr, store, dataDir: () => app.getPath('userData') });
 const ocrLangs = () => store.getSetting('ocr', 'langs') || ['eng', 'hin'];
 
 async function readDocument(filePath, sender) {
@@ -170,7 +172,7 @@ async function readDocument(filePath, sender) {
 // Everything sent to Claude for one draft. Shared by Generate and the prompt
 // preview, so the preview is exactly what would be sent.
 // promptOverrides: unsaved editor text, used only by the preview.
-function buildRequest({ template, references, facts, documents, budgetChars, includeNotes, promptOverrides }) {
+async function buildRequest({ template, references, facts, documents, budgetChars, includeNotes, promptOverrides }) {
   const prompts = effectivePrompts(promptOverrides || loadOverrides(app.getPath('userData')));
   const refs = (references || []).filter((r) => r.text && r.text.trim());
   const templateTexts = refs.filter((r) => r.role === 'template').map((r) => r.text).join('\n');
@@ -190,7 +192,15 @@ function buildRequest({ template, references, facts, documents, budgetChars, inc
         ? { ...d, name: `${d.name} (scanned — text read by OCR; names and figures may contain recognition errors)` }
         : d
   );
-  const context = selectContext(docs, `${facts}\n${template}\n${templateTexts}`, { budgetChars });
+  // When documents exceed the budget, passages are ranked by keyword and, if
+  // meaning-based search is on, by meaning against the facts too.
+  let meaningScore = null;
+  try {
+    meaningScore = await semantic.scorer(passagesToRank(docs, { budgetChars }), `${facts}\n${template}`);
+  } catch (err) {
+    console.warn('Meaning-based search unavailable, using keywords only:', err.message);
+  }
+  const context = selectContext(docs, `${facts}\n${template}\n${templateTexts}`, { budgetChars, meaningScore });
 
   return {
     refs,
@@ -217,13 +227,17 @@ async function generateDraft(payload, onText, onThinking = () => {}) {
   const model = payload.model || store.getSetting(provider.id, 'model') || provider.defaultModel;
   if (!model) throw new ProviderError(`Choose a model for ${provider.label} first.`);
 
-  const { refs, templateTexts, hasPrecedent, context, system, user } = buildRequest(payload);
-
+  // Marked active before any await, so a second Generate is refused and Stop
+  // works even while passages are still being ranked.
   const controller = new AbortController();
   const generation = { controller, cancelled: false };
   activeGeneration = generation;
   let resp;
+  let refs, templateTexts, hasPrecedent, context;
   try {
+    let system, user;
+    ({ refs, templateTexts, hasPrecedent, context, system, user } = await buildRequest(payload));
+    if (generation.cancelled) throw new Error('stopped');
     const creds = await credentialsFor(provider);
     store.setActive({ provider: provider.id, model });
     resp = await provider.stream({
@@ -671,10 +685,24 @@ function registerIpc() {
     return describePrompts(loadOverrides(dataDir()));
   });
 
-  ipcMain.handle('prompts:preview', (_e, payload) => {
-    const { system, user, context } = buildRequest(payload);
-    return { system, user, chars: system.length + user.length, mode: context.mode };
+  ipcMain.handle('prompts:preview', async (_e, payload) => {
+    const { system, user, context } = await buildRequest(payload);
+    return { system, user, chars: system.length + user.length, mode: context.mode, method: context.stats.method };
   });
+
+  // Meaning-based search: status, one-time model download, on/off.
+  ipcMain.handle('semantic:status', () => semantic.status());
+  ipcMain.handle('semantic:enable', async (e) => {
+    try {
+      const s = await semantic.enable((p) => {
+        if (!e.sender.isDestroyed()) e.sender.send('semantic:progress', p);
+      });
+      return { ok: true, ...s };
+    } catch (err) {
+      return { ok: false, error: `Could not download the model: ${friendlyError(err)}`, ...semantic.status() };
+    }
+  });
+  ipcMain.handle('semantic:disable', () => semantic.disable());
 
   ipcMain.handle('prompts:export', async () => {
     const { canceled, filePath } = await dialog.showSaveDialog({

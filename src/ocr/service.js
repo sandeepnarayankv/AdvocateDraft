@@ -21,7 +21,8 @@ function createOcrService({ spawn }) {
       const job = jobs.get(msg.id);
       if (!job) return;
       if (msg.type === 'progress') {
-        job.onProgress({ page: msg.page, total: msg.total, ocr: msg.ocr });
+        const { type, id, ...p } = msg;
+        job.onProgress(p);
       } else if (msg.type === 'done') {
         jobs.delete(msg.id);
         job.resolve(msg.result);
@@ -54,6 +55,18 @@ function createOcrService({ spawn }) {
     return { id, promise };
   }
 
+  // Meaning-based search. Same queue as reading, so it never competes with OCR.
+  function job(msg, onProgress = () => {}) {
+    const id = nextId++;
+    const promise = new Promise((resolve, reject) => {
+      jobs.set(id, { resolve, reject, onProgress });
+    });
+    ensureWorker().send({ type: 'read', id, ...msg });
+    return promise;
+  }
+  const setupEmbedder = (cacheDir, onProgress) => job({ op: 'embedSetup', cacheDir }, onProgress);
+  const embed = (cacheDir, texts, kind) => job({ op: 'embed', cacheDir, texts, kind });
+
   function cancel(id) {
     if (worker && jobs.has(id)) worker.send({ type: 'cancel', id });
   }
@@ -63,7 +76,7 @@ function createOcrService({ spawn }) {
     worker = null;
   }
 
-  return { read, cancel, stop };
+  return { read, cancel, stop, setupEmbedder, embed };
 }
 
 // The worker runs as a plain Node process. Inside the Electron app that is
