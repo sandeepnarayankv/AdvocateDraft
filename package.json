@@ -2,7 +2,7 @@
   "name": "advocate-draft",
   "productName": "Advocate Draft",
   "version": "0.1.0",
-  "description": "Desktop app that drafts legal documents from case facts + source documents in a chosen output format, using the advocate's own Claude API key.",
+  "description": "Drafts Indian legal documents from case facts and source documents, in your format, with the AI provider you choose.",
   "main": "src/main.js",
   "author": "Sandeep",
   "license": "UNLICENSED",
@@ -11,10 +11,60 @@
     "start": "electron .",
     "dev": "electron . --dev",
     "test": "node --test \"test/*.test.js\"",
-    "smoke": "electron test/smoke-electron.js"
+    "smoke": "electron test/smoke-electron.js",
+    "icon": "node build/make-icon.js",
+    "dist": "electron-builder --win nsis --x64"
+  },
+  "build": {
+    "appId": "in.advocatedraft.desktop",
+    "productName": "Advocate Draft",
+    "copyright": "Copyright © 2026 Sandeep",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "package.json",
+      "!**/*.map",
+      "!**/*.d.ts",
+      "!**/*.d.mts",
+      "!**/node_modules/@tesseract.js-data/*/4.0.0/**",
+      "!**/node_modules/tesseract.js-core/*.wasm.js",
+      "!**/node_modules/pdfjs-dist/build/**",
+      "!**/node_modules/pdfjs-dist/web/**",
+      "!**/node_modules/pdf-parse/lib/pdf.js/v1.10.88/**",
+      "!**/node_modules/pdf-parse/lib/pdf.js/v1.9.426/**",
+      "!**/node_modules/pdf-parse/lib/pdf.js/v2.0.550/**",
+      "!**/node_modules/pdf-parse/test/**"
+    ],
+    "asar": false,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "artifactName": "Advocate-Draft-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Advocate Draft",
+      "uninstallDisplayName": "Advocate Draft",
+      "deleteAppDataOnUninstall": false
+    }
   },
   "devDependencies": {
     "electron": "^44.10.0",
+    "electron-builder": "26.17.0",
     "pdf-lib": "1.17.1"
   },
   "dependencies": {
@@ -41,6 +91,7 @@
   },
   "allowScripts": {
     "electron@44.10.0": true,
-    "tesseract.js": false
+    "tesseract.js": false,
+    "electron-winstaller": false
   }
 }

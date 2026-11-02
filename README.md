@@ -67,7 +67,28 @@ Everything for a matter — its name, format, facts, documents, draft and warnin
 
 **✎ Prompts** (top right) shows every instruction sent to the AI (the same for every provider), split into sections, each used only in its situation (e.g. *Previous document rule* only when one is added). Edit any section, reset it to default, and preview the exact text that would be sent for the current inputs — including unsaved edits — before spending API credits. Changes are saved to `prompts.json` in the app's data folder. **Export / Import** shares improved prompts with colleagues; an import is shown for review and only applied on Save.
 
-## Run it
+## Install (Windows)
+
+Run `Advocate-Draft-Setup-<version>.exe`. It installs for the current user (no administrator rights needed), lets you choose the folder, and adds Start menu and desktop shortcuts and an entry in *Add or remove programs*. Uninstalling keeps your matters, keys and settings (in `%APPDATA%\Advocate Draft`).
+
+The installer is not yet code-signed, so Windows SmartScreen shows "Windows protected your PC" on first run: choose **More info → Run anyway**. Signing it needs a code-signing certificate.
+
+### Building the installer
+
+```bash
+npm run dist
+```
+
+Produces `dist/Advocate-Draft-Setup-<version>.exe` (about 160 MB — mostly Electron and the OCR language data). The app is packaged without an asar archive because the PDF reader (an ES module) and the OCR worker (a separate Node process) load from real files. To check that document reading works inside the packaged app:
+
+```bash
+set ELECTRON_RUN_AS_NODE=1
+"dist\win-unpacked\Advocate Draft.exe" build\verify-package.js <a scanned PDF> <a text PDF>
+```
+
+`npm run icon` regenerates `build/icon.png`.
+
+## Run from source
 
 ```bash
 npm install
@@ -110,7 +131,7 @@ Starts the real app in Electron with a throwaway data folder (your settings and 
 ## Status: early prototype
 
 Known next steps:
-- Installer for Windows (and code signing), so advocates don't need Node/npm.
+- Code-sign the installer.
 - Verify each cloud provider with a real account (only Ollama has been run for real).
 - Semantic (embedding) retrieval alongside BM25, for facts worded differently from the documents.
 
