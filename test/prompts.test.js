@@ -46,7 +46,7 @@ const prompts = P.effectivePrompts({ precedent: 'CUSTOM PRECEDENT RULE' });
 const base = { includeNotes: false, mode: 'full', hasTemplate: false, hasPrecedent: false };
 let sys = P.buildSystemPrompt(prompts, base);
 assert(sys.startsWith(P.DEFAULTS.core));
-assert(!sys.includes('CUSTOM PRECEDENT RULE') && !sys.includes('<template>') && !sys.includes(P.SOURCE_NOTES_MARKER));
+assert(!sys.includes('CUSTOM PRECEDENT RULE') && !sys.includes(P.DEFAULTS.template) && !sys.includes(P.SOURCE_NOTES_MARKER));
 assert(sys.endsWith(P.DEFAULTS.noNotes));
 
 sys = P.buildSystemPrompt(prompts, { includeNotes: true, mode: 'retrieved', hasTemplate: true, hasPrecedent: true });
@@ -58,8 +58,21 @@ sys = P.buildSystemPrompt(P.effectivePrompts({ notes: 'Just list sources.' }), {
 assert(sys.includes(`"${P.SOURCE_NOTES_MARKER}"`) && sys.includes('Just list sources.'));
 
 // Custom task line ends the message.
-const user = P.buildUserPrompt(P.effectivePrompts({ task: 'MY TASK' }), { facts: 'f', contextText: 'c' });
-assert(user.endsWith('## TASK\nMY TASK'));
-assert(user.includes('## CASE FACTS (this matter)\nf'));
+const user = P.buildUserPrompt(P.effectivePrompts({ task: 'MY TASK' }), { facts: 'f', contextText: 'c', today: new Date(2026, 10, 4) });
+assert(user.endsWith('TASK: MY TASK'));
+assert(user.includes('<case_facts>\n(this matter)\nf\n</case_facts>'));
+// Long material first, the facts and task last.
+assert(user.indexOf('<source_documents>') < user.indexOf('<format_instructions>'));
+assert(user.indexOf('<format_instructions>') < user.indexOf('<case_facts>'));
+assert(user.includes("Today's date: 4 November 2026"), 'today\'s date line');
+// Previous documents and templates sit with the long material, before the instructions.
+const withRefs = P.buildUserPrompt(P.DEFAULTS, { facts: 'f', contextText: 'c', templatesText: 'T', precedentsText: 'PD' });
+assert(withRefs.indexOf('<previous_documents>') < withRefs.indexOf('<templates>'));
+assert(withRefs.indexOf('<templates>') < withRefs.indexOf('<format_instructions>'));
+assert(withRefs.includes('from ANOTHER matter'));
+// The new rules are present.
+for (const rule of ['disagree', 'instructions', 'Rupees Two Lakh Seventy Thousand only', 'no markdown', 'Cite a statutory provision only']) {
+  assert(P.DEFAULTS.core.includes(rule), `core rule missing: ${rule}`);
+}
 
 console.log('prompts: all passed');

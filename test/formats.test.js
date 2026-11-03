@@ -108,7 +108,7 @@ const P = require('../src/prompts');
     assert(templatesText.startsWith('<template name="Format: '), `${f.id}: not rendered as template`);
   }
   const sys = P.buildSystemPrompt(P.effectivePrompts({}), { includeNotes: false, mode: 'full', hasTemplate: true, hasPrecedent: false });
-  assert(sys.includes('<template> is a blank format'));
+  assert(sys.includes('<template> is the blank format'));
 
   console.log(`formats: all passed (${all.length} formats: ${formats.CATEGORIES.map((c) => `${c} ${all.filter((f) => f.category === c).length}`).join(', ')})`);
 })().catch((e) => {

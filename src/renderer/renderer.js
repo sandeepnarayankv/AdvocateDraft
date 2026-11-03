@@ -873,8 +873,16 @@ $('generateBtn').addEventListener('click', async () => {
 
   renderCarryOver(res.carryOver || []);
 
-  if (res.stopReason === 'max_tokens') {
+  if (res.stopReason === 'max_tokens' && !res.text.trim()) {
+    // Reasoning models can spend the whole output allowance thinking.
+    setStatus(
+      'The model used its whole output allowance on reasoning and wrote no draft. Generate again, or choose a model that reasons less.',
+      'err'
+    );
+  } else if (res.stopReason === 'max_tokens') {
     setStatus('Draft was cut off at the length limit. Review the ending, or shorten the format.', 'err');
+  } else if (!res.text.trim()) {
+    setStatus('The model returned an empty draft. Generate again, or choose another model.', 'err');
   } else if (res.carryOver?.length) {
     const n = res.carryOver.length;
     setStatus(`Draft ready. ${n} possible detail${n > 1 ? 's' : ''} from the previous document to check (below the draft).`, 'err');

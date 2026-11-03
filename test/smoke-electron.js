@@ -69,7 +69,7 @@ const PAGE_CHECKS = `(async () => {
     selected: document.getElementById('provider').value,
   };
   const p = await window.api.prompts.preview({ template: 'Legal notice', references: [], facts: 'Facts here', documents: [], budgetChars: 80000, includeNotes: true });
-  out.preview = { chars: p.chars, hasNotesMarker: p.system.includes('SOURCE NOTES'), endsWithTask: /## TASK/.test(p.user) };
+  out.preview = { chars: p.chars, hasNotesMarker: p.system.includes('SOURCE NOTES'), endsWithTask: /TASK: /.test(p.user) };
   const sections = await window.api.prompts.get();
   out.promptSections = sections.length;
   out.semantic = { checked: document.getElementById('semanticSearch').checked, state: document.getElementById('semanticState').textContent };

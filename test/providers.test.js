@@ -231,7 +231,7 @@ const payload = (provider, model) => ({
   assert.strictEqual(thinking, 1, 'thinking not signalled');
   assert.deepStrictEqual(res.usage, { input_tokens: 100, output_tokens: 2 });
   const gb = seen['/gemini/v1beta/models/gemini-test:streamGenerateContent'].body;
-  assert(gb.systemInstruction.parts[0].text.length > 50 && gb.contents[0].parts[0].text.includes('## CASE FACTS'));
+  assert(gb.systemInstruction.parts[0].text.length > 50 && gb.contents[0].parts[0].text.includes('<case_facts>'));
   ctl.geminiFinish = 'MAX_TOKENS';
   ({ res } = await gen(payload('gemini', 'gemini-test')));
   assert.strictEqual(res.stopReason, 'max_tokens');
