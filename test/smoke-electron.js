@@ -146,14 +146,32 @@ const PAGE_CHECKS = `(async () => {
   }
 
   // Translate the scanned notice into Kannada with the stand-in AI.
-  await window.api.providers.setBaseUrl('ollama', '__MOCK_AI__');
-  await loadProviders();
+  // Model dropdown: says why when there is no list; lists models when there is.
   const prov = document.getElementById('provider');
+  const msel = document.getElementById('modelSelect');
+  const optionTexts = () => [...msel.options].map((o) => o.textContent);
+  const waitLoaded = async () => {
+    for (let i = 0; i < 100 && optionTexts().some((t) => t.startsWith('Loading')); i++) await wait(50);
+  };
+  prov.value = 'gemini';
+  prov.dispatchEvent(new Event('change'));
+  await wait(100);
+  out.dropdownNotSetUp = optionTexts()[0];
+  await window.api.providers.setBaseUrl('ollama', 'http://127.0.0.1:9');
   prov.value = 'ollama';
   prov.dispatchEvent(new Event('change'));
-  const model = document.getElementById('model');
-  model.value = 'mock-model';
-  model.dispatchEvent(new Event('change'));
+  document.getElementById('refreshModels').click();
+  await wait(100);
+  await waitLoaded();
+  out.dropdownUnreachable = optionTexts()[0];
+  await window.api.providers.setBaseUrl('ollama', '__MOCK_AI__');
+  document.getElementById('refreshModels').click();
+  await wait(100);
+  await waitLoaded();
+  out.dropdownModels = optionTexts();
+  msel.value = 'mock-model';
+  msel.dispatchEvent(new Event('change'));
+  out.pickedModel = document.getElementById('model').value;
   await wait(300);
   clickSel('#docList .tr');
   await wait(300);
@@ -260,6 +278,10 @@ app.on('browser-window-created', (_e, win) => {
       expect(report.readingLabels.some((l) => /Reading page \d of 2/.test(l)), `no reading progress shown: ${report.readingLabels}`);
       expect(/2 pages · scanned · OCR \d+%/.test(report.scanSummary), `scan summary: ${report.scanSummary}`);
       expect(/LEGAL NOTICE/.test(report.viewText), `View text: ${report.viewText}`);
+      expect(/^Set up Gemini \(Google\) first/.test(report.dropdownNotSetUp), `dropdown for a provider not set up: ${report.dropdownNotSetUp}`);
+      expect(/^⚠ Ollama isn't running/.test(report.dropdownUnreachable), `dropdown when Ollama is unreachable: ${report.dropdownUnreachable}`);
+      expect(report.dropdownModels.includes('mock-model') && report.dropdownModels.at(-1) === 'Other model id…', `dropdown models: ${report.dropdownModels}`);
+      expect(report.pickedModel === 'mock-model', `picking from the dropdown: ${report.pickedModel}`);
       const tr = report.translation;
       expect(tr.text === 'ಕಾನೂನು ನೋಟಿಸ್', `translation text: ${tr.text}`);
       expect(/^— Kannada, by Ollama/.test(tr.info) && tr.exportEnabled, `translation info: ${tr.info}`);

@@ -267,7 +267,13 @@ dialog::backdrop { background: rgba(0,0,0,0.3); }
 .hint { color: var(--muted); font-size: 12.5px; margin: 0; }
 
 /* AI providers */
-#model { font-size: 13px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; width: 230px; color: var(--ink); }
+#model { font-size: 13px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; width: 260px; color: var(--ink); margin-top: 4px; }
+.model-row { display: flex; gap: 4px; align-items: center; }
+#modelSelect {
+  font-size: 13px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px;
+  background: #fff; color: var(--ink); width: 230px;
+}
+.ghost.icon { padding: 4px 8px; font-size: 14px; line-height: 1; }
 .pcard { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
 .pcard.active { border-color: #d9c39b; background: #fffcf6; }
 .pcard-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }

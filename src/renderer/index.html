@@ -23,8 +23,11 @@
         </label>
         <label class="model-pick">
           Model
-          <input id="model" list="modelList" spellcheck="false" autocomplete="off" placeholder="Choose or type a model" />
-          <datalist id="modelList"></datalist>
+          <span class="model-row">
+            <select id="modelSelect" title="Models offered by the selected provider"></select>
+            <button id="refreshModels" class="ghost icon" title="Reload the list of models">↻</button>
+          </span>
+          <input id="model" spellcheck="false" autocomplete="off" placeholder="Type a model id" hidden />
         </label>
         <button id="translateDocBtn" class="ghost" title="Upload a document (PDF, Word, scan or photo) and translate it">⇄ Translate a document</button>
         <button id="promptsBtn" class="ghost" title="View and edit the instructions sent to the AI">✎ Prompts</button>

@@ -41,22 +41,75 @@ async function loadProviders() {
   loadModels(sel.value);
 }
 
-// Fill the model suggestions from the provider's live list (or defaults).
-async function loadModels(id) {
+// ---- Model dropdown ----------------------------------------------------------
+// The list comes live from the provider. #model holds the chosen model id;
+// it is shown as a text box only for "Other model id…".
+const CUSTOM = '__custom__';
+const modelErrors = {}; // provider id -> why the list could not be loaded
+const modelLoading = new Set();
+
+async function loadModels(id, { force = false } = {}) {
   const p = providerInfo.find((x) => x.id === id);
   if (!p) return;
-  if (!modelCache[id] && p.configured) {
+  if (force) delete modelCache[id];
+  if (!modelCache[id] && p.configured && !modelLoading.has(id)) {
+    modelLoading.add(id);
+    renderModelSelect();
     const res = await P.models(id);
-    if (res.models.length) modelCache[id] = res.models;
+    modelLoading.delete(id);
+    if (res.ok) {
+      modelCache[id] = res.models;
+      delete modelErrors[id];
+    } else {
+      // Keep any fallback list, but say why the live list is missing.
+      modelCache[id] = res.models || [];
+      modelErrors[id] = res.error;
+    }
   }
-  const models = modelCache[id] || [];
   if ($('provider').value !== id) return;
-  $('modelList').innerHTML = models.map((m) => `<option value="${escapeHtml(m.id)}">${escapeHtml(m.label)}</option>`).join('');
+  const models = modelCache[id] || [];
   if (!$('model').value && models[0]) {
     $('model').value = models[0].id;
     P.setActive(id, models[0].id);
   }
+  renderModelSelect();
 }
+
+function renderModelSelect() {
+  const p = currentProvider();
+  if (!p) return;
+  const sel = $('modelSelect');
+  const current = $('model').value.trim();
+  const models = modelCache[p.id] || [];
+  const opt = (value, text, extra = '') => `<option value="${escapeHtml(value)}"${extra}>${escapeHtml(text)}</option>`;
+  const parts = [];
+  if (!p.configured) parts.push(opt('', `Set up ${p.label} first (⚙ AI providers)`, ' disabled'));
+  else if (modelLoading.has(p.id)) parts.push(opt('', 'Loading models…', ' disabled'));
+  else if (modelErrors[p.id]) parts.push(opt('', `⚠ ${modelErrors[p.id]}`, ' disabled'));
+  else if (!models.length) parts.push(opt('', 'No models found — press ↻ to reload', ' disabled'));
+  if (current && !models.some((m) => m.id === current)) parts.push(opt(current, `${current} (current)`));
+  for (const m of models) parts.push(opt(m.id, m.label && m.label !== m.id ? `${m.label} — ${m.id}` : m.id));
+  parts.push(opt(CUSTOM, 'Other model id…'));
+  sel.innerHTML = parts.join('');
+  sel.value = current && [...sel.options].some((o) => o.value === current) ? current : '';
+  if (!sel.value && sel.options.length) sel.selectedIndex = 0;
+  sel.title = modelErrors[p.id] || 'Models offered by the selected provider';
+}
+
+$('modelSelect').addEventListener('change', () => {
+  const v = $('modelSelect').value;
+  if (v === CUSTOM) {
+    $('model').hidden = false;
+    $('model').value = '';
+    $('model').focus();
+    return;
+  }
+  $('model').hidden = true;
+  $('model').value = v;
+  P.setActive($('provider').value, v);
+});
+
+$('refreshModels').addEventListener('click', () => loadModels($('provider').value, { force: true }));
 
 function updateProviderHint() {
   const p = currentProvider();
@@ -74,14 +127,20 @@ function updateProviderHint() {
 $('provider').addEventListener('change', () => {
   const p = currentProvider();
   $('model').value = p.model || '';
-  $('modelList').innerHTML = '';
+  $('model').hidden = true;
+  renderModelSelect();
   P.setActive(p.id, $('model').value);
   updateProviderHint();
   renderProviderCards();
   loadModels(p.id);
 });
 
-$('model').addEventListener('change', () => P.setActive($('provider').value, $('model').value.trim()));
+// A typed model id ("Other model id…") is used as soon as it is entered.
+$('model').addEventListener('change', () => {
+  P.setActive($('provider').value, $('model').value.trim());
+  renderModelSelect();
+  if ($('modelSelect').value === $('model').value.trim()) $('model').hidden = true;
+});
 
 $('settingsBtn').addEventListener('click', () => {
   renderProviderCards();
@@ -157,6 +216,7 @@ function wireProviderCard(card, p) {
   };
   const refresh = async (msg) => {
     delete modelCache[p.id];
+    delete modelErrors[p.id];
     await loadProviders();
     if (msg) {
       const fresh = [...$('providerCards').children][providerInfo.findIndex((x) => x.id === p.id)];
@@ -181,8 +241,13 @@ function wireProviderCard(card, p) {
   on('.test', async () => {
     providerState(card, 'Testing…', '');
     const res = await P.models(p.id);
-    if (!res.ok) return providerState(card, res.error, 'err');
+    if (!res.ok) {
+      modelErrors[p.id] = res.error;
+      if ($('provider').value === p.id) renderModelSelect();
+      return providerState(card, res.error, 'err');
+    }
     modelCache[p.id] = res.models;
+    delete modelErrors[p.id];
     if ($('provider').value === p.id) loadModels(p.id);
     providerState(card, `Working · ${res.models.length} model${res.models.length === 1 ? '' : 's'} available`, 'ok');
   });
