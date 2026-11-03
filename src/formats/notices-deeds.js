@@ -77,7 +77,7 @@ Under instructions from and on behalf of my client, [CLIENT NAME], [DESCRIPTION]
 
 4. Your acts amount to [BREACH OF CONTRACT / OTHER LEGAL WRONG], making you liable to [__].
 
-5. I therefore call upon you to [PAY Rs. [__] WITH INTEREST AT [RATE]% PER ANNUM FROM [DATE] / DO THE ACT] within [15] days of receipt of this notice, failing which my client shall be constrained to initiate appropriate civil and / or criminal proceedings against you, at your risk as to costs and consequences.
+5. I therefore call upon you to [PAY Rs. [__] WITH INTEREST AT [RATE]% PER ANNUM FROM [DATE] / DO THE ACT] within [15] days of receipt of this notice, failing which my client shall be constrained to initiate appropriate legal proceedings against you, at your risk as to costs and consequences.
 
 6. You are also liable to pay Rs. [__] towards the cost of this notice.
 

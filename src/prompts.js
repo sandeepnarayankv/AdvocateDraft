@@ -74,8 +74,9 @@ const SECTIONS = [
     when: 'When “Add source notes” is ticked. The app adds the separator line before this text.',
     default:
       'List each factual paragraph of the draft with the passage tags it relies on, e.g. "Para 3 — D1-P2, D2-P7". ' +
-      'Mark a paragraph that relies only on the stated case facts as "Para N — case facts", and standard text ' +
-      'adapted from a previous document as "Para N — adapted from previous document". ' +
+      'Mark a paragraph that relies only on the stated case facts as "Para N — case facts", and standard wording ' +
+      'taken from the template or format as "Para N — template wording". Use "Para N — adapted from previous document" ' +
+      'only if a previous document was actually supplied. ' +
       'List every [TO CONFIRM] placeholder at the end.',
   },
   {
