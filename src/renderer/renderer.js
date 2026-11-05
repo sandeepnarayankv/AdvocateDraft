@@ -355,7 +355,9 @@ async function readDocWithAi(doc, rerender) {
   doc.aiReading = { stage: 'preparing' };
   rerender();
   setStatus(`Reading “${doc.name}” with ${p.label}…`, 'busy');
-  const res = await window.api.aiRead.run({ sourceId: doc.sourceId, provider: p.id, model });
+  // The OCR text so far, for cross-checking Indian-script lines.
+  const previousText = doc.ocrPages > 0 ? doc.text : '';
+  const res = await window.api.aiRead.run({ sourceId: doc.sourceId, provider: p.id, model, previousText });
   delete doc.aiReading;
   aiReadTarget = null;
   if (!documents.includes(doc) && !references.includes(doc)) return; // removed meanwhile
@@ -369,12 +371,32 @@ async function readDocWithAi(doc, rerender) {
       confidence: null,
     });
     if (doc.translation) doc.translation.stale = true;
-    setStatus(
-      res.truncated
-        ? `Read with AI, but ${res.truncated} page(s) were cut short — use View and compare with the original.`
-        : `“${doc.name}” read with AI (${res.aiPages} page${res.aiPages === 1 ? '' : 's'}). Use View to check it against the original.`,
-      res.truncated ? 'warn' : ''
-    );
+    doc.strayScripts = res.strayScripts || [];
+    doc.ocrMismatch = res.ocrMismatch || [];
+    if (doc.ocrMismatch.length) {
+      // The AI and the earlier OCR read Indian-script text differently.
+      const m = doc.ocrMismatch[0];
+      setStatus(
+        `Check “${doc.name}”: the AI and the OCR read the ${m.script} text differently (${m.agreement}% of words agree). ` +
+          `OCR: “${m.ocr}” — AI: “${m.ai}”. Printed ${m.script} is often read better by OCR; compare with the original (View).`,
+        'warn'
+      );
+    } else if (doc.strayScripts.length) {
+      // e.g. Malayalam when reading English + Kannada: the model likely
+      // substituted text for a line it could not read.
+      setStatus(
+        `Check “${doc.name}”: the AI wrote some text in ${doc.strayScripts.join(' and ')} script, which you did not select for scans. ` +
+          'It may have replaced a line it could not read with other text — compare with the original (View).',
+        'warn'
+      );
+    } else {
+      setStatus(
+        res.truncated
+          ? `Read with AI, but ${res.truncated} page(s) were cut short — use View and compare with the original.`
+          : `“${doc.name}” read with AI (${res.aiPages} page${res.aiPages === 1 ? '' : 's'}). Use View to check it against the original.`,
+        res.truncated ? 'warn' : ''
+      );
+    }
   } else {
     setStatus(res.cancelled ? 'AI reading stopped; the earlier text is kept.' : `AI reading failed: ${res.error}`, res.cancelled ? '' : 'err');
   }

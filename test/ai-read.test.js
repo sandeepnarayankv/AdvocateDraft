@@ -105,7 +105,11 @@ function windowStub() {
   const scanDoc = await add(scan3);
   ({ res, progress } = await aiRead(scanDoc.sourceId));
   assert(res.ok && res.aiPages === 3 && requests.length === 3);
-  assert.deepStrictEqual(requests.map((r) => r.messages[1].content), [1, 2, 3].map((n) => `Transcribe page ${n} of the document.`));
+  // Each page is requested in order, naming the languages of the "Scans in" setting.
+  assert.deepStrictEqual(
+    requests.map((r) => r.messages[1].content),
+    [1, 2, 3].map((n) => `Transcribe page ${n} of the document. Expected languages: English and Hindi.`)
+  );
   assert.deepStrictEqual(progress.filter((p) => p.page).map((p) => `${p.page}/${p.total}`), ['1/3', '2/3', '3/3']);
   console.log('ok  one request per page with progress');
 
@@ -135,6 +139,20 @@ function windowStub() {
   ({ res } = await aiRead(photoDoc.sourceId));
   assert(!res.ok && /may not accept images|support images/.test(res.error), res.error);
   rejectImages = false;
+
+  // 6a. Safeguards: the mock answers in Kannada. With English + Hindi selected,
+  //     that script is flagged; with an OCR text that read the line
+  //     differently, the disagreement is reported with both versions.
+  ({ res } = await aiRead(photoDoc.sourceId));
+  assert.deepStrictEqual(res.strayScripts, ['Kannada'], 'unexpected script should be flagged');
+  ({ res } = await aiRead(photoDoc.sourceId, { previousText: 'RECEIVED Rs. 5,000\nಹಣ ಸ್ವೀಕರಿಸಲಾಗಿದೆ ಪುಟ' }));
+  assert(res.ok && res.ocrMismatch.length === 1 && res.ocrMismatch[0].script === 'Kannada', JSON.stringify(res.ocrMismatch));
+  assert(res.ocrMismatch[0].ocr.includes('ಹಣ ಸ್ವೀಕರಿಸಲಾಗಿದೆ') && res.ocrMismatch[0].ai.includes('ಕೈಬರಹ'));
+  await call('ocr:setLangs', ['eng', 'kan']);
+  ({ res } = await aiRead(photoDoc.sourceId));
+  assert.deepStrictEqual(res.strayScripts, [], 'Kannada is expected once selected');
+  await call('ocr:setLangs', ['eng', 'hin']);
+  console.log('ok  script check and OCR cross-check');
 
   // 6. Unknown / missing file.
   ({ res } = await aiRead('s999'));

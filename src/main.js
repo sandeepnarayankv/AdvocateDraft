@@ -20,6 +20,7 @@ const {
 const { createChatGptAuth } = require('./chatgpt-auth');
 const { selectContext, renderContext, passagesToRank } = require('./rag');
 const { createSemantic } = require('./semantic');
+const { unexpectedScripts, compareWithOcr } = require('./scripts');
 const { renderReferences, findCarryOver } = require('./precedent');
 const { buildDocx } = require('./docx-export');
 const {
@@ -334,7 +335,9 @@ async function translateDocument({ name, text, source, target, provider: provide
 // model, one page at a time; pages with a text layer keep their text.
 let activeAiRead = null;
 
-async function readWithAi({ sourceId, provider: providerId, model: modelId }, { onProgress }) {
+// previousText: the document's OCR text, used to cross-check the AI's reading
+// of Indian-script lines (OCR often reads printed Indian scripts better).
+async function readWithAi({ sourceId, provider: providerId, model: modelId, previousText }, { onProgress }) {
   const source = sourceFiles.get(sourceId);
   if (!source) throw new ProviderError('The original file is no longer available. Add it again to read it with AI.');
   if (!fs.existsSync(source.path)) throw new ProviderError('The original file has been moved or deleted. Add it again.');
@@ -353,6 +356,9 @@ async function readWithAi({ sourceId, provider: providerId, model: modelId }, { 
     const pages = await read.promise;
     const system = effectivePrompts(loadOverrides(app.getPath('userData'))).handwriting;
     const toRead = pages.filter((p) => p.image);
+    // The languages the advocate reads scans in (the "Scans in" setting).
+    const langs = ocrLangs();
+    const expect = langs.map((l) => LANGUAGES[l]).filter(Boolean).join(' and ');
     let done = 0;
     let truncated = 0;
     for (const p of toRead) {
@@ -362,7 +368,7 @@ async function readWithAi({ sourceId, provider: providerId, model: modelId }, { 
         ...creds,
         model,
         system,
-        user: `Transcribe page ${p.page} of the document.`,
+        user: `Transcribe page ${p.page} of the document. Expected languages: ${expect}.`,
         images: [p.image],
         maxTokens: 6000,
         signal: controller.signal,
@@ -373,7 +379,11 @@ async function readWithAi({ sourceId, provider: providerId, model: modelId }, { 
       p.image = null;
     }
     const text = pages.map((p) => p.text).filter(Boolean).join('\n\n').trim();
-    return { text, pages: pages.length, aiPages: toRead.length, truncated, provider: provider.label, model };
+    // A script nobody selected (e.g. Malayalam when reading English + Kannada)
+    // usually means the model substituted text it could not read.
+    const strayScripts = unexpectedScripts(text, langs);
+    const ocrMismatch = previousText ? compareWithOcr(text, previousText) : [];
+    return { text, pages: pages.length, aiPages: toRead.length, truncated, strayScripts, ocrMismatch, provider: provider.label, model };
   } catch (err) {
     if (job.cancelled) {
       const e = new Error('Reading stopped.');
