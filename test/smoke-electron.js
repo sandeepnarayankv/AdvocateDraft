@@ -21,6 +21,21 @@ dialog.showOpenDialog = async () => {
   return { canceled: false, filePaths: [scanPath] };
 };
 
+// Saves of the "Race …" test matters are slowed to 0.8 s, so clicking New
+// matter mid-save is certain (on a fast machine a save takes milliseconds).
+const { ipcMain } = require('electron');
+const realHandle = ipcMain.handle.bind(ipcMain);
+ipcMain.handle = (channel, fn) =>
+  realHandle(
+    channel,
+    channel === 'matters:save'
+      ? async (event, matter) => {
+          if (/^Race /.test((matter && matter.title) || '')) await new Promise((r) => setTimeout(r, 800));
+          return fn(event, matter);
+        }
+      : fn
+  );
+
 // A stand-in local AI (Ollama API) for the translation check.
 const http = require('http');
 const mockAi = http.createServer((req, res) => {
@@ -55,10 +70,12 @@ setTimeout(() => {
 const PAGE_CHECKS = `(async () => {
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   for (let i = 0; i < 50 && !document.querySelectorAll('#provider option').length; i++) await wait(100);
-  // Click by selector; a missing element is reported by name.
-  const clickSel = (sel) => {
-    const el = document.querySelector(sel);
-    if (!el) throw new Error('missing element ' + sel + ' — documents: ' +
+  // Click by selector once the element appears (up to 5 s, so a busy machine
+  // does not fail the test); a missing element is reported by name.
+  const clickSel = async (sel) => {
+    let el = null;
+    for (let i = 0; i < 100 && !(el = document.querySelector(sel)); i++) await wait(50);
+    if (!el) throw new Error('missing element ' + sel + ' — matter list: ' + (document.getElementById('matterList') || {}).textContent.replace(/s+/g, ' ').trim() + ' — save state: ' + document.getElementById('saveState').textContent + ' — title: ' + document.getElementById('matterTitle').value + ' — documents: ' +
       [...document.querySelectorAll('#docList li')].map((li) => li.textContent.replace(/\\s+/g, ' ').trim()).join(' / '));
     el.click();
   };
@@ -88,7 +105,9 @@ const PAGE_CHECKS = `(async () => {
   const type = (id, v) => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('input')); };
   type('matterTitle', 'Smoke v. Test');
   type('facts', 'Smoke facts: deposit Rs. 1,000 not refunded.');
-  await wait(1600);
+  // Autosave waits 1 s after the last edit; allow a busy machine up to 5 s more.
+  await wait(1000);
+  for (let i = 0; i < 100 && !/^Saved/.test(document.getElementById('saveState').textContent); i++) await wait(50);
   out.autosave = document.getElementById('saveState').textContent;
   document.getElementById('newMatter').click();
   await wait(400);
@@ -96,9 +115,34 @@ const PAGE_CHECKS = `(async () => {
   document.getElementById('openMatter').click();
   await wait(400);
   out.listed = [...document.querySelectorAll('#matterList .mt')].map((e) => e.textContent);
-  clickSel('#matterList .open');
+  await clickSel('#matterList .open');
   await wait(400);
   out.reopened = { facts: document.getElementById('facts').value, title: document.getElementById('matterTitle').value };
+
+  // Race: click New matter while an autosave is in flight. Autosave starts 1 s
+  // after typing and (for these matters) takes 0.8 s, so 1.1–1.5 s lands
+  // mid-save. Each matter must survive with its own facts, created once, and
+  // later typing must not land in a previous matter.
+  const delays = [1100, 1200, 1300, 1400, 1500];
+  for (const d of delays) {
+    document.getElementById('newMatter').click();
+    await wait(150);
+    type('matterTitle', 'Race ' + d);
+    type('facts', 'Facts of race ' + d);
+    await wait(d);
+    document.getElementById('newMatter').click();
+    await wait(50);
+  }
+  type('facts', 'Typed in the newest matter');
+  await wait(1600);
+  const all = await window.api.matters.list();
+  out.race = { titles: all.map((m) => m.title).sort(), facts: [] };
+  for (const d of delays) {
+    const m = all.find((x) => x.title === 'Race ' + d);
+    out.race.facts.push(m ? (await window.api.matters.open(m.id)).matter.facts : 'MISSING');
+  }
+  document.getElementById('newMatter').click();
+  await wait(300);
 
   // Built-in formats: pick the Magistrate bail format in a fresh matter.
   document.getElementById('newMatter').click();
@@ -106,10 +150,10 @@ const PAGE_CHECKS = `(async () => {
   document.getElementById('chooseFormat').click();
   await wait(400);
   out.formatCount = document.querySelectorAll('#formatList li[data-id]').length;
-  clickSel('#formatCats button[data-cat="Criminal"]');
+  await clickSel('#formatCats button[data-cat="Criminal"]');
   await wait(100);
   out.criminalCount = document.querySelectorAll('#formatList li[data-id]').length;
-  clickSel('#formatList li[data-id="crim-bail-magistrate"]');
+  await clickSel('#formatList li[data-id="crim-bail-magistrate"]');
   await wait(400);
   out.detailHasLaw = document.getElementById('formatDetail').textContent.includes('Section 480 BNSS');
   document.getElementById('useFormat').click();
@@ -125,7 +169,7 @@ const PAGE_CHECKS = `(async () => {
 
   // Scanned PDF: read in Electron's background process, with progress.
   out.ocrLangOptions = document.querySelectorAll('#ocrLang option').length;
-  clickSel('[data-pick="documents"]');
+  await clickSel('[data-pick="documents"]');
   const seen = new Set();
   for (let i = 0; i < 300; i++) {
     await wait(100);
@@ -173,7 +217,7 @@ const PAGE_CHECKS = `(async () => {
   msel.dispatchEvent(new Event('change'));
   out.pickedModel = document.getElementById('model').value;
   await wait(300);
-  clickSel('#docList .tr');
+  await clickSel('#docList .tr');
   await wait(300);
   document.getElementById('trTarget').value = 'kan';
   document.getElementById('trRun').click();
@@ -193,7 +237,7 @@ const PAGE_CHECKS = `(async () => {
   let asked = '';
   window.confirm = (msg) => { asked = msg; return true; };
   out.aiButton = (document.querySelector('#docList .ai') || {}).textContent;
-  clickSel('#docList .ai');
+  await clickSel('#docList .ai');
   for (let i = 0; i < 100; i++) {
     await wait(100);
     const meta = document.querySelector('#docList .doc-meta');
@@ -202,7 +246,7 @@ const PAGE_CHECKS = `(async () => {
   out.aiRead = {
     asked: asked.includes('stay on this computer'),
     summary: document.querySelector('#docList .doc-meta').textContent,
-    status: document.getElementById('status').textContent.slice(0, 50),
+    status: document.getElementById('status').textContent.slice(0, 300),
     trTitle: document.querySelector('#docList .tr').title,
   };
 
@@ -218,10 +262,10 @@ const PAGE_CHECKS = `(async () => {
   };
   document.getElementById('trClose').click();
   // Toggle: the first document out of the draft and back in.
-  clickSel('#docList .use');
+  await clickSel('#docList .use');
   await wait(100);
   out.toggled = document.querySelector('#docList .use').textContent;
-  clickSel('#docList .use');
+  await clickSel('#docList .use');
   await wait(100);
   const pv = await window.api.prompts.preview(collectPayload());
   out.previewDocs = (pv.user.match(/SOURCE DOCUMENT D\\d+/g) || []).length;
@@ -267,6 +311,10 @@ app.on('browser-window-created', (_e, win) => {
       expect(!report.afterNew.facts && !report.afterNew.title, 'New matter did not clear the fields');
       expect(report.listed.join() === 'Smoke v. Test', `matter list wrong: ${report.listed}`);
       expect(report.reopened.facts.startsWith('Smoke facts') && report.reopened.title === 'Smoke v. Test', 'reopen failed');
+      const race = report.race;
+      const expectedTitles = ['Race 1100', 'Race 1200', 'Race 1300', 'Race 1400', 'Race 1500', 'Smoke v. Test', 'Untitled matter'];
+      expect(JSON.stringify(race.titles) === JSON.stringify(expectedTitles), `matters after New-during-save: ${race.titles}`);
+      expect(race.facts.every((f, i) => f === 'Facts of race ' + [1100, 1200, 1300, 1400, 1500][i]), `facts overwritten: ${race.facts}`);
       expect(report.formatCount === 50 && report.criminalCount === 8, `format picker counts: ${report.formatCount}/${report.criminalCount}`);
       expect(report.detailHasLaw, 'format detail missing law');
       const fu = report.formatUsed;
@@ -290,7 +338,9 @@ app.on('browser-window-created', (_e, win) => {
       const ai = report.aiRead;
       expect(ai.asked, 'no confirmation naming where the images go');
       expect(/2 pages · all read by AI/.test(ai.summary), `AI read summary: ${ai.summary}`);
-      expect(/read with AI \(2 pages\)/.test(ai.status), `AI read status: ${ai.status}`);
+      // The stand-in AI answers in Kannada while scans are set to English + Hindi,
+      // so the app must warn about the unexpected script.
+      expect(/Kannada script, which you did not select/.test(ai.status), `AI read script warning: ${ai.status}`);
       const tu = report.translateUpload;
       expect(tu.dialogOpened && tu.original === 'LEGAL NOTICE', `translation window after upload: ${JSON.stringify(tu)}`);
       expect(tu.uses.join() === 'In draft,Not in draft', `In draft switches: ${tu.uses}`);

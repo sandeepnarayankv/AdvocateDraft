@@ -1185,6 +1185,12 @@ let currentMatterId = null;
 let lastCarryOver = [];
 let saveTimer = null;
 let applyingMatter = false; // opening a matter must not count as an edit
+// Saves run one at a time. Each opened (or new) matter gets a new epoch, so a
+// save that finishes after the advocate has switched matters still saves its
+// own matter but cannot make it "current" again — otherwise later edits of the
+// new matter would be written over the previous one.
+let matterEpoch = 0;
+let saveChain = Promise.resolve();
 
 function matterIsEmpty() {
   return (
@@ -1225,26 +1231,40 @@ function scheduleSave() {
   saveTimer = setTimeout(saveNow, 1000);
 }
 
-async function saveNow() {
+function saveNow() {
   clearTimeout(saveTimer);
   saveTimer = null;
   if (!currentMatterId && matterIsEmpty()) {
     $('saveState').textContent = '';
-    return;
+    return saveChain;
   }
-  try {
-    const s = await M.save(snapshotMatter());
-    currentMatterId = s.id;
-    if (!$('matterTitle').value.trim()) $('matterTitle').placeholder = s.title;
-    $('saveState').textContent = `Saved ${new Date(s.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-  } catch (err) {
-    $('saveState').textContent = '⚠ Not saved';
-    setStatus(`Could not save the matter: ${err.message}`, 'err');
-  }
+  // Capture what to save now, while it is on screen.
+  const epoch = matterEpoch;
+  const snapshot = snapshotMatter();
+  saveChain = saveChain.then(async () => {
+    // A matter's first save creates it; later saves in the same epoch must
+    // use the id that save returned, so it is never created twice.
+    const id = epoch === matterEpoch ? currentMatterId : snapshot.id;
+    try {
+      const s = await M.save({ ...snapshot, id });
+      if (epoch !== matterEpoch) return; // the advocate has moved on
+      currentMatterId = s.id;
+      if (!$('matterTitle').value.trim()) $('matterTitle').placeholder = s.title;
+      $('saveState').textContent = `Saved ${new Date(s.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    } catch (err) {
+      if (epoch !== matterEpoch) return;
+      $('saveState').textContent = '⚠ Not saved';
+      setStatus(`Could not save the matter: ${err.message}`, 'err');
+    }
+  });
+  return saveChain;
 }
 
 function applyMatter(m) {
   applyingMatter = true;
+  matterEpoch++;
+  clearTimeout(saveTimer);
+  saveTimer = null;
   try {
     currentMatterId = m ? m.id : null;
     $('matterTitle').value = m && m.title !== 'Untitled matter' ? m.title : '';
@@ -1282,12 +1302,16 @@ async function openMatter(id) {
 }
 
 // Switching matters is blocked mid-draft, and pending edits are saved first.
-async function leaveCurrentMatter() {
+async function leaveCurrentMatter({ waitForSaves = false } = {}) {
   if (generating) {
     setStatus('Stop or finish the current draft before switching matters.', 'err');
     return false;
   }
-  if (saveTimer) await saveNow();
+  // Capture pending edits now; the save finishes in the background, safely,
+  // because it belongs to this matter's epoch. Only when a matter is about to
+  // be read back from disk (Open…) is it worth waiting for saves to finish.
+  if (saveTimer) saveNow();
+  if (waitForSaves) await saveChain;
   return true;
 }
 
@@ -1334,7 +1358,8 @@ async function renderMatterList() {
 }
 
 $('openMatter').addEventListener('click', async () => {
-  if (!(await leaveCurrentMatter())) return;
+  // The list and the matter opened are read from disk: let saves finish first.
+  if (!(await leaveCurrentMatter({ waitForSaves: true }))) return;
   $('matterSearch').value = '';
   await renderMatterList();
   mattersDlg.showModal();
