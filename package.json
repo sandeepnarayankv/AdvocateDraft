@@ -1,7 +1,7 @@
 {
   "name": "advocate-draft",
   "productName": "Advocate Draft",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Drafts Indian legal documents from case facts and source documents, in your format, with the AI provider you choose.",
   "main": "src/main.js",
   "author": "Sandeep",
