@@ -1,0 +1,49 @@
+name: Format correction
+description: A built-in format is wrong, outdated, or missing something a court requires. No coding needed.
+labels: ["format", "legal-review"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Corrections from practising advocates are the most valuable contribution to this project — thank you.
+        **Do not include client information.**
+  - type: input
+    id: format
+    attributes:
+      label: Which format?
+      description: The title shown in "Choose a format…", e.g. "Regular bail application (Magistrate)".
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of problem?
+      multiple: true
+      options:
+        - Wrong or outdated statutory provision
+        - Limitation period or time rule
+        - Missing paragraph, averment or prayer
+        - Cause title / court name / forum
+        - Verification or affidavit wording
+        - State-specific practice differs
+        - Facts checklist or annexures list
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: correction
+    attributes:
+      label: The correction
+      description: What is wrong, and what it should say.
+    validations:
+      required: true
+  - type: textarea
+    id: authority
+    attributes:
+      label: Authority
+      description: Statute section, rule, notification or judgment that supports the correction (citation or link), if any.
+  - type: input
+    id: state
+    attributes:
+      label: State / court (if the point is local)
+      placeholder: e.g. Karnataka; City Civil Court, Bengaluru
