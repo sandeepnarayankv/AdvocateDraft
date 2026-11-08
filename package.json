@@ -5,7 +5,12 @@
   "description": "Drafts Indian legal documents from case facts and source documents, in your format, with the AI provider you choose.",
   "main": "src/main.js",
   "author": "Sandeep",
-  "license": "UNLICENSED",
+  "homepage": "https://github.com/sandeepnarayankv/AdvocateDraft",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sandeepnarayankv/AdvocateDraft.git"
+  },
+  "license": "AGPL-3.0-or-later",
   "private": true,
   "scripts": {
     "start": "electron .",

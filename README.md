@@ -78,7 +78,7 @@ Everything for a matter — its name, format, facts, documents, draft and warnin
 
 ## Install (Windows)
 
-Run `Advocate-Draft-Setup-<version>.exe`. It installs for the current user (no administrator rights needed), lets you choose the folder, and adds Start menu and desktop shortcuts and an entry in *Add or remove programs*. Uninstalling keeps your matters, keys and settings (in `%APPDATA%\Advocate Draft`).
+Download `Advocate-Draft-Setup-<version>.exe` from the [Releases page](https://github.com/sandeepnarayankv/AdvocateDraft/releases) and run it. It installs for the current user (no administrator rights needed), lets you choose the folder, and adds Start menu and desktop shortcuts and an entry in *Add or remove programs*. Uninstalling keeps your matters, keys and settings (in `%APPDATA%\Advocate Draft`).
 
 The installer is not yet code-signed, so Windows SmartScreen shows "Windows protected your PC" on first run: choose **More info → Run anyway**. Signing it needs a code-signing certificate.
 
@@ -142,8 +142,21 @@ Starts the real app in Electron with a throwaway data folder (your settings and 
 
 Known next steps:
 - Code-sign the installer.
-- Verify each cloud provider with a real account (only Ollama has been run for real).
+- Verify Claude and Gemini with real accounts (Ollama, OpenRouter and Sign in with ChatGPT have been tested live).
+- Review of the built-in formats by practising advocates.
 
 Setting up on a new machine with npm 11+: npm holds back Electron's download step. Run `npm install-scripts approve electron` (or `npm rebuild electron`) after `npm install` if `npm start` cannot find Electron.
 
-> ⚠ Drafts are AI-generated. Always review for accuracy, citations, and compliance before any filing or use.
+> ⚠ Drafts are AI-generated. Always review for accuracy, citations, and compliance before any filing or use. The built-in formats are starting points, not legal advice.
+
+## Contributing
+
+Issues and pull requests are welcome — especially corrections to the built-in formats from practising advocates, and State-specific variants (court fees, rent laws, forms). Please run `npm test` and `npm run smoke` before sending a change.
+
+## Licence
+
+Copyright © 2026 Sandeep
+
+Advocate Draft is free software: you can redistribute it and/or modify it under the terms of the **GNU Affero General Public License** as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. It is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See [LICENSE](LICENSE) for the full text.
+
+Third-party components keep their own licences — mostly MIT, Apache-2.0 and BSD, including Electron, pdf.js, Tesseract.js and its language data (Apache-2.0), and the optional `multilingual-e5-small` search model (MIT); the bundled image library includes libvips (LGPL-3.0).
